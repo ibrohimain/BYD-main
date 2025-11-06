@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import { Car, Package, Warehouse, FileText, Users, LogOut, Menu, X } from 'lucide-react'; // Users icon qo'shildi
+import { Car, Package, Warehouse, FileText, Users, LogOut, Menu, X, User } from 'lucide-react'; // Users icon qo'shildi
 
 export default function Navbar() {
   const { user, logout, hasRole } = useAuth();
@@ -32,6 +32,7 @@ export default function Navbar() {
   const getNavLinks = () => {
     const baseLinks = [
       { to: "/", label: "Dashboard", icon: <Car className="w-5 h-5" /> },
+      { to: "/profile", label: "Profil", icon: <User className="w-5 h-5" /> },
       { to: "/orders", label: "Buyurtmalar", icon: <Package className="w-5 h-5" /> },
       { to: "/warehouse", label: "Ombor", icon: <Warehouse className="w-5 h-5" /> },
     ];

@@ -10,6 +10,7 @@ import Reports from './pages/Reports';
 import Users from './pages/Users'; // Yangi import
 import useAuth from './hooks/useAuth';
 import { useEffect } from 'react';
+import UserProfile from './pages/UserProfile';
 
 function AppContent() {
   const { loadUser, user, hasRole } = useAuth();
@@ -56,6 +57,7 @@ function AppContent() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="*" element={<Navigate to="/login" />} />
+      <Route path="/profile" element={<UserProfile />} />
     </Routes>
   );
 }
