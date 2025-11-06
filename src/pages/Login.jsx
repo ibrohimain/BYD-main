@@ -19,18 +19,21 @@ export default function Login() {
   }, [user, navigate]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
+  try {
     const result = login(email, password);
     if (!result.success) {
       setError(result.error);
     } else {
       navigate('/');
     }
-    setLoading(false);
-  };
+  } finally {
+    setLoading(false); // Har doim loading ni o'chiring
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-blue-50 to-indigo-100 flex items-center justify-center p-4">
