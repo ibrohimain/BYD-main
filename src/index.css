@@ -1,1 +1,25 @@
 @import "tailwindcss";
+/* Dark mode class styles */
+.dark {
+  @apply bg-gray-900 text-white;
+}
+
+.dark .bg-white {
+  @apply bg-gray-800 border-gray-700;
+}
+
+.dark .text-gray-800 {
+  @apply text-gray-200;
+}
+
+.dark .border-gray-300 {
+  @apply border-gray-600;
+}
+
+.dark .bg-gray-50 {
+  @apply bg-gray-800;
+}
+
+.dark .hover\:bg-gray-50:hover {
+  @apply hover:bg-gray-700;
+}

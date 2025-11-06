@@ -48,7 +48,9 @@ function AppContent() {
             } />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
+          
         </main>
+        
       </div>
     );
   }

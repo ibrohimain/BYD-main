@@ -1,4 +1,4 @@
-// src/hooks/useReports.js (tuzatilgan – useMemo bilan loop oldi olingan)
+// src/hooks/useReports.js (yangilangan – ko'proq mock hisobotlar)
 import { useMemo } from 'react';
 import { useOrders } from './useOrders';
 import { useWarehouse } from './useWarehouse';
@@ -7,15 +7,13 @@ export const useReports = () => {
   const { orders } = useOrders();
   const { cars } = useWarehouse();
 
-  // Stats ni useMemo bilan hisoblash (loop oldi olish uchun)
   const stats = useMemo(() => ({
     totalOrders: orders.length,
     inProduction: orders.filter(o => o.holat === 'Jarayonda').length,
     inWarehouse: cars.filter(c => c.status === 'Tayyor').length,
     delivered: orders.filter(o => o.holat === 'Yetkazildi').length,
-  }), [orders, cars]); // Dependencies: array'lar o'zgarganda faqat qayta hisoblaydi
+  }), [orders, cars]);
 
-  // Oylik ishlab chiqarish (useMemo bilan)
   const monthlyProduced = useMemo(() => {
     const monthNamesUz = {
       0: 'Yanvar', 1: 'Fevral', 2: 'Mart', 3: 'Aprel', 4: 'May', 5: 'Iyun',
@@ -30,7 +28,7 @@ export const useReports = () => {
     });
     return Object.entries(monthly)
       .map(([oy, son]) => ({ oy, ishlabchiqarish: son }))
-      .sort((a, b) => { // Sana bo'yicha tartiblash (eng yangi birinchi)
+      .sort((a, b) => {
         const aYear = parseInt(a.oy.split(' ')[1]);
         const bYear = parseInt(b.oy.split(' ')[1]);
         const aMonthIndex = Object.values(monthNamesUz).indexOf(a.oy.split(' ')[0]);
@@ -40,13 +38,11 @@ export const useReports = () => {
       });
   }, [cars]);
 
-  // Yillik ishlab chiqarish
   const yearlyProduced = useMemo(() => {
     const currentYear = new Date().getFullYear();
     return cars.filter(car => new Date(car.sana).getFullYear() === currentYear).length;
   }, [cars]);
 
-  // Model kesimida sotuv (useMemo bilan)
   const modelSales = useMemo(() => {
     const sales = {};
     orders.filter(o => o.holat === 'Yetkazildi').forEach(order => {
@@ -58,8 +54,15 @@ export const useReports = () => {
       model,
       sotuv,
       foiz: totalSotuv > 0 ? Math.round((sotuv / totalSotuv) * 100) : 0
-    })).sort((a, b) => b.sotuv - a.sotuv); // Eng ko'p sotuv bo'yicha tartiblash
+    })).sort((a, b) => b.sotuv - a.sotuv);
   }, [orders]);
 
-  return { stats, monthlyProduced, yearlyProduced, modelSales };
+  // Yangi: Ko'proq mock hisobotlar (jami hisobotlar soni)
+  const reportStats = useMemo(() => ({
+    totalReports: 45, // Mock
+    monthlyReports: 12, // Oylik
+    yearlyReports: 120, // Yillik
+  }), []);
+
+  return { stats, monthlyProduced, yearlyProduced, modelSales, reportStats };
 };
