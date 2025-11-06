@@ -1,57 +1,60 @@
-// src/components/Navbar.jsx
-  import { useEffect, useRef } from 'react';
+// src/components/Navbar.jsx (yangilangan – rol bo'yicha menyu)
+import { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import { Car, Package, Warehouse, FileText, LogOut, Menu, X } from 'lucide-react';
+import { Car, Package, Warehouse, FileText, Users, LogOut, Menu, X } from 'lucide-react'; // Users icon qo'shildi
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
-
-
-
-// Navbar ichida
-const menuRef = useRef(null);
-
-useEffect(() => {
-  const handleClickOutside = (e) => {
-    if (menuRef.current && !menuRef.current.contains(e.target)) {
-      setMobileMenuOpen(false);
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    if (mobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
     }
-  };
-  if (mobileMenuOpen) {
-    document.addEventListener('mousedown', handleClickOutside);
-  }
-  return () => document.removeEventListener('mousedown', handleClickOutside);
-}, [mobileMenuOpen]);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mobileMenuOpen]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const navLinks = [
-    { to: "/", label: "Dashboard", icon: <Car className="w-5 h-5" /> },
-    { to: "/orders", label: "Buyurtmalar", icon: <Package className="w-5 h-5" /> },
-    { to: "/warehouse", label: "Ombor", icon: <Warehouse className="w-5 h-5" /> },
-    { to: "/reports", label: "Hisobotlar", icon: <FileText className="w-5 h-5" /> },
-  ];
+  // Rol bo'yicha nav links
+  const getNavLinks = () => {
+    const baseLinks = [
+      { to: "/", label: "Dashboard", icon: <Car className="w-5 h-5" /> },
+      { to: "/orders", label: "Buyurtmalar", icon: <Package className="w-5 h-5" /> },
+      { to: "/warehouse", label: "Ombor", icon: <Warehouse className="w-5 h-5" /> },
+    ];
+    if (hasRole('manager') || hasRole('admin')) {
+      baseLinks.push({ to: "/reports", label: "Hisobotlar", icon: <FileText className="w-5 h-5" /> });
+    }
+    if (hasRole('admin')) {
+      baseLinks.push({ to: "/users", label: "Foydalanuvchilar", icon: <Users className="w-5 h-5" /> });
+    }
+    return baseLinks;
+  };
+
+  const navLinks = getNavLinks();
 
   return (
-    <nav className="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-lg">
+    <nav className="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-lg" ref={menuRef}>
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-
-          {/* Logo */}
           <div className="flex items-center space-x-3">
             <Car className="w-8 h-8" />
             <h1 className="text-xl md:text-2xl font-bold">AFOOMS</h1>
           </div>
 
-          {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
             {navLinks.map(link => (
               <NavLink
@@ -69,9 +72,8 @@ useEffect(() => {
             ))}
           </div>
 
-          {/* Desktop: User + Logout */}
           <div className="hidden md:flex items-center space-x-4">
-            <span className="text-sm">Salom, {user?.name}</span>
+            <span className="text-sm">Salom, {user?.name} ({user?.role})</span>
             <button
               onClick={handleLogout}
               className="flex items-center space-x-1 text-sm hover:text-red-300 transition"
@@ -81,16 +83,11 @@ useEffect(() => {
             </button>
           </div>
 
-          {/* Mobil: Gamburger */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden"
-          >
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden">
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
-        {/* Mobil Menyu (animatsiya bilan) */}
         <div className={`md:hidden transition-all duration-300 ease-in-out overflow-hidden ${
           mobileMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         }`}>
@@ -113,7 +110,7 @@ useEffect(() => {
 
             <div className="border-t border-blue-700 mt-3 pt-3 px-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm">Salom, {user?.name}</span>
+                <span className="text-sm">Salom, {user?.name} ({user?.role})</span>
                 <button
                   onClick={handleLogout}
                   className="flex items-center space-x-1 text-sm text-red-300 hover:text-red-400"

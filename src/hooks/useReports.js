@@ -1,30 +1,65 @@
-// src/hooks/useReports.js
-import { useState, useEffect } from 'react';
-import { monthlyData, modelSales } from '../data/mockData';
+// src/hooks/useReports.js (tuzatilgan – useMemo bilan loop oldi olingan)
+import { useMemo } from 'react';
+import { useOrders } from './useOrders';
+import { useWarehouse } from './useWarehouse';
 
 export const useReports = () => {
-  const [stats, setStats] = useState({
-    totalOrders: 356,
-    inProduction: 65,
-    inWarehouse: 68,
-    delivered: 223,
-  });
-  const [monthly, setMonthly] = useState(monthlyData);
-  const [models, setModels] = useState(modelSales);
+  const { orders } = useOrders();
+  const { cars } = useWarehouse();
 
-  // Real-time yangilanish
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStats(prev => ({
-        totalOrders: prev.totalOrders + Math.floor(Math.random() * 3),
-        inProduction: Math.max(0, prev.inProduction + Math.floor(Math.random() * 5) - 2),
-        inWarehouse: Math.max(0, prev.inWarehouse + Math.floor(Math.random() * 4) - 1),
-        delivered: prev.delivered + Math.floor(Math.random() * 2),
-      }));
-    }, 8000);
+  // Stats ni useMemo bilan hisoblash (loop oldi olish uchun)
+  const stats = useMemo(() => ({
+    totalOrders: orders.length,
+    inProduction: orders.filter(o => o.holat === 'Jarayonda').length,
+    inWarehouse: cars.filter(c => c.status === 'Tayyor').length,
+    delivered: orders.filter(o => o.holat === 'Yetkazildi').length,
+  }), [orders, cars]); // Dependencies: array'lar o'zgarganda faqat qayta hisoblaydi
 
-    return () => clearInterval(interval);
-  }, []);
+  // Oylik ishlab chiqarish (useMemo bilan)
+  const monthlyProduced = useMemo(() => {
+    const monthNamesUz = {
+      0: 'Yanvar', 1: 'Fevral', 2: 'Mart', 3: 'Aprel', 4: 'May', 5: 'Iyun',
+      6: 'Iyul', 7: 'Avgust', 8: 'Sentyabr', 9: 'Oktyabr', 10: 'Noyabr', 11: 'Dekabr'
+    };
+    const monthly = {};
+    cars.forEach(car => {
+      const date = new Date(car.sana);
+      const oyIndex = date.getMonth();
+      const oy = `${monthNamesUz[oyIndex]} ${date.getFullYear()}`;
+      monthly[oy] = (monthly[oy] || 0) + 1;
+    });
+    return Object.entries(monthly)
+      .map(([oy, son]) => ({ oy, ishlabchiqarish: son }))
+      .sort((a, b) => { // Sana bo'yicha tartiblash (eng yangi birinchi)
+        const aYear = parseInt(a.oy.split(' ')[1]);
+        const bYear = parseInt(b.oy.split(' ')[1]);
+        const aMonthIndex = Object.values(monthNamesUz).indexOf(a.oy.split(' ')[0]);
+        const bMonthIndex = Object.values(monthNamesUz).indexOf(b.oy.split(' ')[0]);
+        if (aYear !== bYear) return bYear - aYear;
+        return bMonthIndex - aMonthIndex;
+      });
+  }, [cars]);
 
-  return { stats, monthly, models };
+  // Yillik ishlab chiqarish
+  const yearlyProduced = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return cars.filter(car => new Date(car.sana).getFullYear() === currentYear).length;
+  }, [cars]);
+
+  // Model kesimida sotuv (useMemo bilan)
+  const modelSales = useMemo(() => {
+    const sales = {};
+    orders.filter(o => o.holat === 'Yetkazildi').forEach(order => {
+      const miqdor = parseInt(order.miqdor) || 1;
+      sales[order.model] = (sales[order.model] || 0) + miqdor;
+    });
+    const totalSotuv = Object.values(sales).reduce((a, b) => a + b, 0);
+    return Object.entries(sales).map(([model, sotuv]) => ({
+      model,
+      sotuv,
+      foiz: totalSotuv > 0 ? Math.round((sotuv / totalSotuv) * 100) : 0
+    })).sort((a, b) => b.sotuv - a.sotuv); // Eng ko'p sotuv bo'yicha tartiblash
+  }, [orders]);
+
+  return { stats, monthlyProduced, yearlyProduced, modelSales };
 };

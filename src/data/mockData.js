@@ -6,46 +6,15 @@
 // ];
 
 export const warehouse = [
-  { 
-    id: "SPK-001", 
-    model: "Chevrolet Spark", 
-    rang: "Oq", 
-    kategoriya: "Hatchback", 
-    status: "Tayyor", 
-    location: "A-12", 
-    vin: "KL1TF5DE9BB123456", 
-    sana: "2025-11-04" 
-  },
-  { 
-    id: "ONX-045", 
-    model: "Chevrolet Onix", 
-    rang: "Qora", 
-    kategoriya: "Sedan", 
-    status: "Ta'mirda", 
-    location: "B-05", 
-    vin: "KL1TF6DE9BB789012", 
-    sana: "2025-11-03" 
-  },
-  { 
-    id: "MAL-112", 
-    model: "Chevrolet Malibu", 
-    rang: "Kulrang", 
-    kategoriya: "Sedan", 
-    status: "Tayyor", 
-    location: "C-03", 
-    vin: "KL1TG5DE9BB345678", 
-    sana: "2025-11-05" 
-  },
-  { 
-    id: "SPK-078", 
-    model: "Chevrolet Spark", 
-    rang: "Qizil", 
-    kategoriya: "Hatchback", 
-    status: "Chiqarildi", 
-    location: "D-07", 
-    vin: "KL1TF5DE9BB901234", 
-    sana: "2025-11-02" 
-  },
+  // Oldingi 4 ta...
+  { id: "SPK-001", model: "Chevrolet Spark", rang: "Oq", kategoriya: "Hatchback", status: "Tayyor", location: "A-12", vin: "KL1TF5DE9BB123456", sana: "2025-11-04" },
+  { id: "ONX-045", model: "Chevrolet Onix", rang: "Qora", kategoriya: "Sedan", status: "Ta'mirda", location: "B-05", vin: "KL1TF6DE9BB789012", sana: "2025-10-15" },
+  { id: "MAL-112", model: "Chevrolet Malibu", rang: "Kulrang", kategoriya: "Sedan", status: "Tayyor", location: "C-03", vin: "KL1TG5DE9BB345678", sana: "2025-09-20" },
+  { id: "SPK-078", model: "Chevrolet Spark", rang: "Qizil", kategoriya: "Hatchback", status: "Chiqarildi", location: "D-07", vin: "KL1TF5DE9BB901234", sana: "2025-08-10" },
+  // Qo'shimcha test ma'lumotlari
+  { id: "ONX-123", model: "Chevrolet Onix", rang: "Oq", kategoriya: "Sedan", status: "Tayyor", location: "A-15", vin: "KL1TF6DE9BB456789", sana: "2025-11-01" },
+  { id: "MAL-456", model: "Chevrolet Malibu", rang: "Qora", kategoriya: "Sedan", status: "Tayyor", location: "B-10", vin: "KL1TG5DE9BB567890", sana: "2025-10-25" },
+  { id: "SPK-234", model: "Chevrolet Spark", rang: "Kulrang", kategoriya: "Hatchback", status: "Chiqarildi", location: "C-08", vin: "KL1TF5DE9BB678901", sana: "2025-09-05" },
 ];
 
 export const stats = {

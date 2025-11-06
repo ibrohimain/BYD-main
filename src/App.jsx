@@ -1,3 +1,4 @@
+// src/App.jsx (yangilangan – rol bo'yicha routes)
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -6,17 +7,17 @@ import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
 import Warehouse from './pages/Warehouse';
 import Reports from './pages/Reports';
+import Users from './pages/Users'; // Yangi import
 import useAuth from './hooks/useAuth';
 import { useEffect } from 'react';
 
 function AppContent() {
-  const { loadUser, user } = useAuth();
+  const { loadUser, user, hasRole } = useAuth();
 
   useEffect(() => {
     loadUser();
   }, [loadUser]);
 
-  // Agar user bo'lsa – asosiy sahifalar
   if (user) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -24,9 +25,26 @@ function AppContent() {
         <main className="container mx-auto px-4 py-8">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/warehouse" element={<Warehouse />} />
-            <Route path="/reports" element={<Reports />} />
+            <Route path="/orders" element={
+              <ProtectedRoute roles={['admin', 'manager', 'operator']}>
+                <Orders />
+              </ProtectedRoute>
+            } />
+            <Route path="/warehouse" element={
+              <ProtectedRoute roles={['admin', 'manager', 'operator']}>
+                <Warehouse />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute roles={['admin', 'manager']}>
+                <Reports />
+              </ProtectedRoute>
+            } />
+            <Route path="/users" element={
+              <ProtectedRoute roles={['admin']}>
+                <Users />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
@@ -34,7 +52,6 @@ function AppContent() {
     );
   }
 
-  // Agar user yo'q bo'lsa – faqat login
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
