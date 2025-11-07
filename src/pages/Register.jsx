@@ -7,6 +7,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
+import BYD from '../img/bydlogin.png'
 
 const BYD_IMAGE = '/img/bydlogin.png';
 
@@ -54,6 +55,7 @@ export default function Register() {
     <div className="min-h-screen flex flex-col md:flex-row overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800">
       {/* Image Section - Mobil uchun tepada */}
       <div className="md:w-1/2 relative min-h-[40vh] md:min-h-screen bg-cover bg-center" style={{ backgroundImage: `url(${BYD_IMAGE})` }}>
+        <img src={BYD} alt="login img" className='w-full h-full'/>
         <div className="absolute inset-0 bg-black/40"></div>
         <div className="absolute bottom-6 left-6 text-white">
           <p className="text-lg font-medium opacity-90">BYD Ostara</p>

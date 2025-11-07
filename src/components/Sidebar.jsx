@@ -21,7 +21,7 @@ export default function Sidebar({ isOpen, onClose }) {
     // { to: "/digital", label: t('digitalTransformation'), icon: <Cpu className="w-5 h-5" /> },
     { to: "/orders", label: t('Buyurtmalar'), icon: <Package className="w-5 h-5" /> }, 
     { to: "/reports", label: t('Monitoring'), icon: <BarChart3 className="w-5 h-5" /> },
-    { to: "/production-delivery", label: t('Ishlab chiqarish'), icon: <Package className="w-5 h-5" /> },
+    // { to: "/production-delivery", label: t('Ishlab chiqarish'), icon: <Package className="w-5 h-5" /> },
     { to: "/finance", label: t('Moliya'), icon: <DollarSign className="w-5 h-5" /> },
     { to: "/profile", label: t('Profile'), icon: <UserIcon className="w-5 h-5" /> }
   ];
