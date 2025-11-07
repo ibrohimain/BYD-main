@@ -1,175 +1,217 @@
-// src/pages/Reports.jsx (yangilangan – ko'proq mock hisobotlar)
-import { useRef, useState } from 'react';
-import { useReports } from '../hooks/useReports';
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { FileText, Download, RefreshCw } from 'lucide-react';
-import { useReactToPrint } from 'react-to-print';
-import { CSVLink } from 'react-csv';
-
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+// src/pages/Reports.jsx - To'liq Responsive + Optimal + Jonli Hisoblar (Firebase + Narxlar)
+import { useEffect, useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import { 
+  TrendingUp, TrendingDown, Package, DollarSign, Calendar,
+  Truck, Activity
+} from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function Reports() {
-  const { stats, monthlyProduced, yearlyProduced, modelSales, reportStats } = useReports();
-  const printRef = useRef();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { t } = useTranslation();
+  const [warehouse, setWarehouse] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [prices, setPrices] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  const handlePrint = useReactToPrint({
-    content: () => printRef.current,
-  });
+  useEffect(() => {
+    const unsubWarehouse = onSnapshot(collection(db, 'warehouse'), (snap) => {
+      setWarehouse(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
 
-  const csvData = [
-    ...monthlyProduced.map(m => ({ 'Oy': m.oy, 'Ishlab chiqarish': m.ishlabchiqarish })),
-    { 'Oy': `Yillik (${new Date().getFullYear()})`, 'Ishlab chiqarish': yearlyProduced },
-    ...modelSales.map(ms => ({ 'Model': ms.model, 'Sotuv': ms.sotuv, 'Foiz': `${ms.foiz}%` })),
-  ];
+    const unsubOrders = onSnapshot(collection(db, 'orders'), (snap) => {
+      setOrders(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    const unsubPrices = onSnapshot(collection(db, 'prices'), (snap) => {
+      const priceMap = {};
+      snap.docs.forEach(doc => {
+        const d = doc.data();
+        if (d.model && d.price) priceMap[d.model] = d.price;
+      });
+      setPrices(priceMap);
+      setLoading(false);
+    });
+
+    return () => { unsubWarehouse(); unsubOrders(); unsubPrices(); };
+  }, []);
+
+  const monthlyReport = useMemo(() => {
+    const monthly = {};
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(currentYear, currentMonth - i, 1);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthly[key] = {
+        month: key,
+        produced: 0,
+        sold: 0,
+        revenue: 0,
+        priceChange: 0
+      };
+    }
+
+    warehouse.forEach(car => {
+      if (car.sana) {
+        const key = car.sana.slice(0, 7);
+        if (monthly[key]) monthly[key].produced++;
+      }
+    });
+
+    orders
+      .filter(o => o.holat === 'Yetkazildi' && o.sana)
+      .forEach(order => {
+        const key = order.sana.slice(0, 7);
+        if (monthly[key]) {
+          const qty = parseInt(order.miqdor) || 0;
+          const price = prices[order.model] || 0;
+          monthly[key].sold += qty;
+          monthly[key].revenue += qty * price;
+        }
+      });
+
+    const sorted = Object.entries(monthly)
+      .map(([key, val]) => ({ ...val }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    sorted.forEach((item, i) => {
+      if (i > 0) {
+        const prev = sorted[i - 1];
+        if (prev.revenue > 0) {
+          item.priceChange = ((item.revenue - prev.revenue) / prev.revenue) * 100;
+        }
+      }
+    });
+
+    return sorted;
+  }, [warehouse, orders, prices]);
+
+  const totalProduced = warehouse.length;
+  const totalSold = monthlyReport.reduce((sum, m) => sum + m.sold, 0);
+  const totalRevenue = monthlyReport.reduce((sum, m) => sum + m.revenue, 0);
+  const avgPrice = totalSold > 0 ? Math.round(totalRevenue / totalSold) : 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-slate-900">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
-    <div ref={printRef}>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Hisobot va Analitika</h2>
-        <div className="flex gap-3">
-          <button
-            onClick={() => { setIsRefreshing(true); setTimeout(() => setIsRefreshing(false), 1000); handlePrint(); }}
-            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-          >
-            <FileText className="w-5 h-5" />
-            <span>PDF</span>
-          </button>
-          <CSVLink
-            data={csvData}
-            filename="afooms_hisobot.csv"
-            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-          >
-            <Download className="w-5 h-5" />
-            <span>Excel</span>
-          </CSVLink>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+              Hisobot va Analitika
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Oyma-oy ishlab chiqarish, narx o‘sishi va daromad (Firebase'dan jonli)
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Yangi: Hisobotlar stats kartalari */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <p className="text-gray-600 dark:text-gray-300">Jami Hisobotlar</p>
-          <p className="text-3xl font-bold text-blue-600">{reportStats.totalReports}</p>
+        {/* Umumiy statistika - Jonli hisoblanadi */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Jami ishlab chiqarilgan', value: totalProduced, color: 'from-blue-500 to-cyan-500', icon: Package },
+            { label: 'Sotilgan', value: totalSold, color: 'from-emerald-500 to-green-500', icon: Truck },
+            { label: 'Umumiy daromad', value: `${totalRevenue.toLocaleString()} UZS`, color: 'from-purple-500 to-pink-500', icon: DollarSign },
+            { label: 'O‘rtacha narx', value: `${avgPrice.toLocaleString()} UZS`, color: 'from-amber-500 to-orange-500', icon: Activity }
+          ].map((stat, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className={`bg-gradient-to-br ${stat.color} text-white p-6 rounded-2xl shadow-lg flex items-center justify-between`}
+            >
+              <div>
+                <p className="text-sm opacity-90">{stat.label}</p>
+                <p className="text-3xl font-bold mt-2">{stat.value}</p>
+              </div>
+              <stat.icon className="w-10 h-10 opacity-80" />
+            </motion.div>
+          ))}
         </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <p className="text-gray-600 dark:text-gray-300">Oylik Hisobotlar</p>
-          <p className="text-3xl font-bold text-green-600">{reportStats.monthlyReports}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <p className="text-gray-600 dark:text-gray-300">Yillik Hisobotlar</p>
-          <p className="text-3xl font-bold text-yellow-600">{reportStats.yearlyReports}</p>
-        </div>
-      </div>
 
-      {/* Stats kartalari (o'zgarishsiz) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <p className="text-gray-600 dark:text-gray-300">Jami Buyurtma</p>
-          <p className="text-3xl font-bold text-blue-600">{stats.totalOrders}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <p className="text-gray-600 dark:text-gray-300">Ishlab chiqarishda</p>
-          <p className="text-3xl font-bold text-yellow-600">{stats.inProduction}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <p className="text-gray-600 dark:text-gray-300">Omborda</p>
-          <p className="text-3xl font-bold text-green-600">{stats.inWarehouse}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <p className="text-gray-600 dark:text-gray-300">Yetkazib berilgan</p>
-          <p className="text-3xl font-bold text-red-600">{stats.delivered}</p>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 mb-8">
-        <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Yillik Ishlab Chiqarish (2025)</h3>
-        <p className="text-4xl font-bold text-green-600">{yearlyProduced} ta mashina</p>
-      </div>
-
-      {/* Grafiklar */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Oylik Ishlab Chiqarish</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyProduced}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="oy" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <Tooltip />
-              <Bar dataKey="ishlabchiqarish" fill="#3B82F6" name="Ishlab chiqarish" />
-            </BarChart>
+        {/* Grafik - Narxlar bilan jonli */}
+        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-5">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-emerald-600" />
+            Oyma-oy daromad va narx o‘sishi
+          </h2>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={monthlyReport}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb dark:stroke-slate-700" />
+              <XAxis dataKey="month" tick={{ fill: '#6b7280 dark:fill-gray-400' }} />
+              <YAxis tick={{ fill: '#6b7280 dark:fill-gray-400' }} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#f9fafb dark:bg-slate-800', border: '1px solid #e5e7eb dark:border-slate-700', borderRadius: '8px', color: '#374151 dark:color-gray-300' }}
+              />
+              <Legend wrapperStyle={{ color: '#6b7280 dark:color-gray-400' }} />
+              <Line type="monotone" dataKey="produced" stroke="#8b5cf6" name="Ishlab chiqarilgan" strokeWidth={3} />
+              <Line type="monotone" dataKey="sold" stroke="#10b981" name="Sotilgan" strokeWidth={3} />
+              <Line type="monotone" dataKey="revenue" stroke="#3b82f6" name="Daromad (UZS)" strokeWidth={3} yAxisId="right" />
+            </LineChart>
           </ResponsiveContainer>
-        </div>
+        </section>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Model Kesimida Sotuv</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={modelSales}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                dataKey="sotuv"
-              >
-                {modelSales.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+        {/* Jadval - Responsive */}
+        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white p-5 flex items-center gap-2 border-b border-gray-200 dark:border-slate-700">
+            <Calendar className="w-5 h-5 text-blue-600" />
+            Oylik batafsil hisobot
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+              <thead className="bg-gray-50 dark:bg-slate-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Oy</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ishlab chiqarilgan</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sotilgan</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Daromad (UZS)</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Narx o‘sishi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                {monthlyReport.map((row, i) => (
+                  <motion.tr
+                    key={i}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="hover:bg-gray-50 dark:hover:bg-slate-700"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{row.month}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-purple-600 dark:text-purple-400 font-medium">{row.produced}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-emerald-600 dark:text-emerald-400 font-medium">{row.sold}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-blue-600 dark:text-blue-400 font-medium">{row.revenue.toLocaleString()} UZS</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
+                      {row.priceChange !== 0 ? (
+                        <span className={row.priceChange > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                          {row.priceChange > 0 ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
+                          {Math.abs(row.priceChange).toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-gray-500 dark:text-gray-400">-</span>
+                      )}
+                    </td>
+                  </motion.tr>
                 ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Jadval (oylik) */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 mb-6">
-        <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Oylik Hisobot</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b dark:border-gray-600">
-                <th className="py-2 text-gray-800 dark:text-white">Oy</th>
-                <th className="py-2 text-center text-gray-800 dark:text-white">Ishlab Chiqarish</th>
-              </tr>
-            </thead>
-            <tbody>
-              {monthlyProduced.map((m, i) => (
-                <tr key={i} className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="py-3 text-gray-800 dark:text-white font-medium">{m.oy}</td>
-                  <td className="py-3 text-center text-gray-800 dark:text-white">{m.ishlabchiqarish}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-        <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Model Kesimida Sotuv</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b dark:border-gray-600">
-                <th className="py-2 text-gray-800 dark:text-white">Model</th>
-                <th className="py-2 text-center text-gray-800 dark:text-white">Sotuv</th>
-                <th className="py-2 text-center text-gray-800 dark:text-white">Foiz</th>
-              </tr>
-            </thead>
-            <tbody>
-              {modelSales.map((ms, i) => (
-                <tr key={i} className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="py-3 text-gray-800 dark:text-white font-medium">{ms.model}</td>
-                  <td className="py-3 text-center text-gray-800 dark:text-white">{ms.sotuv}</td>
-                  <td className="py-3 text-center text-gray-800 dark:text-white">{ms.foiz}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
   );

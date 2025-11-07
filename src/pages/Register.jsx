@@ -1,18 +1,20 @@
-// src/pages/Login.jsx - To'liq Responsive + Optimal + Professional
+// src/pages/Register.jsx - To'liq Responsive + Optimal + Professional
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 
 const BYD_IMAGE = '/img/bydlogin.png';
 
-export default function Login() {
+export default function Register() {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -24,16 +26,24 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.password !== formData.confirmPassword) return setError(t('passwordMismatch'));
+    if (formData.password.length < 6) return setError(t('weakPassword'));
+
     setLoading(true);
     setError('');
     try {
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const { user } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      await setDoc(doc(db, 'users', user.uid), {
+        name: formData.name,
+        email: formData.email,
+        role: 'operator',
+        createdAt: new Date().toISOString()
+      });
       navigate('/dashboard');
     } catch (err) {
-      const msg = err.code === 'auth/user-not-found' ? t('userNotFound')
-        : err.code === 'auth/wrong-password' ? t('wrongPassword')
-        : err.code === 'auth/invalid-email' ? t('invalidEmail')
-        : t('loginError');
+      const msg = err.code === 'auth/email-already-in-use' ? t('emailInUse')
+        : err.code === 'auth/weak-password' ? t('weakPassword')
+        : t('registerError');
       setError(msg);
     } finally {
       setLoading(false);
@@ -59,7 +69,7 @@ export default function Login() {
           className="w-full max-w-md space-y-6"
         >
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white text-center md:text-left">
-            {t('login')}
+            {t('register')}
           </h2>
           
           <AnimatePresence>
@@ -78,6 +88,23 @@ export default function Login() {
           
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('name')}</label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                  className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder={t('namePlaceholder')}
+                />
+              </div>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('email')}</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -88,8 +115,8 @@ export default function Login() {
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="admin@afoms.uz"
+                  className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
+                  placeholder="your.email@example.com"
                 />
               </div>
             </div>
@@ -104,9 +131,10 @@ export default function Login() {
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  minLength={6}
                   disabled={loading}
                   className="w-full pl-12 pr-12 py-3.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
-                  placeholder="********"
+                  placeholder="6+ belgi"
                 />
                 <button
                   type="button"
@@ -115,6 +143,32 @@ export default function Login() {
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('confirmPassword')}</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                  disabled={loading}
+                  className="w-full pl-12 pr-12 py-3.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
+                  placeholder={t('confirmPasswordPlaceholder')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  disabled={loading}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50"
+                >
+                  {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
@@ -130,13 +184,13 @@ export default function Login() {
                   <span>{t('loading')}</span>
                 </>
               ) : (
-                <span>{t('login')}</span>
+                <span>{t('register')}</span>
               )}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-            {t('noAccount')} <a href="/register" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">{t('register')}</a>
+            {t('haveAccount')} <a href="/login" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">{t('login')}</a>
           </p>
         </motion.div>
       </div>

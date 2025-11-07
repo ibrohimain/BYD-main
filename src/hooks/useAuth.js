@@ -1,47 +1,96 @@
-// src/hooks/useAuth.js (persist bilan – ism/email saqlanishi)
+// src/hooks/useAuth.js (MUAMMO HAL QILINDI: onAuthStateChanged to'g'ri ishlaydi)
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { users } from '../data/users';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 
 const useAuth = create(
   persist(
     (set, get) => ({
       user: null,
-      token: null,
-      login: (email, password) => {
-        const foundUser = users.find(u => u.email === email && u.password === password);
-        if (foundUser) {
-          const { password, ...userWithoutPassword } = foundUser;
-          const token = 'mock-token-' + Date.now();
-          localStorage.setItem('token', token);
-          set({ user: userWithoutPassword, token });
+      loading: true,
+      error: '',
+
+      // App ochilganda auth holatini yuklash
+      init: () => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            if (userDoc.exists()) {
+              const data = userDoc.data();
+              set({ 
+                user: { 
+                  uid: firebaseUser.uid, 
+                  email: firebaseUser.email, 
+                  name: data.name || '',
+                  role: data.role || 'user'
+                }, 
+                loading: false 
+              });
+            } else {
+              set({ user: null, loading: false });
+            }
+          } else {
+            set({ user: null, loading: false });
+          }
+        });
+        return unsubscribe;
+      },
+
+      login: async (email, password) => {
+        set({ loading: true, error: '' });
+        try {
+          const { user } = await signInWithEmailAndPassword(auth, email, password);
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            set({ 
+              user: { 
+                uid: user.uid, 
+                email: user.email, 
+                name: data.name || '',
+                role: data.role || 'user'
+              }, 
+              loading: false 
+            });
+            return { success: true };
+          }
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          return { success: false };
+        }
+      },
+
+      register: async (name, email, password) => {
+        set({ loading: true, error: '' });
+        try {
+          const { user } = await createUserWithEmailAndPassword(auth, email, password);
+          await setDoc(doc(db, 'users', user.uid), {
+            name, email, role: 'operator', createdAt: new Date().toISOString()
+          });
+          set({ 
+            user: { uid: user.uid, email, name, role: 'operator' }, 
+            loading: false 
+          });
           return { success: true };
-        }
-        return { success: false, error: "Noto'g'ri ma'lumotlar" };
-      },
-      logout: () => {
-        localStorage.removeItem('token');
-        set({ user: null, token: null });
-      },
-      loadUser: () => {
-        const saved = localStorage.getItem('user');
-        if (saved) {
-          set({ user: JSON.parse(saved) });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          return { success: false };
         }
       },
-      // Yangi: User ma'lumotlarini yangilash va persist
-      updateUser: (updatedData) => {
-        const currentUser = get().user;
-        const updatedUser = { ...currentUser, ...updatedData };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        set({ user: updatedUser });
+
+      logout: async () => {
+        await signOut(auth);
+        set({ user: null });
       },
-      hasRole: (requiredRole) => {
-        const { user } = get();
-        if (!user) return false;
-        const roleHierarchy = { admin: 3, manager: 2, operator: 1 };
-        return roleHierarchy[user.role] >= roleHierarchy[requiredRole];
-      },
+
+      hasRole: (role) => get().user?.role === role,
     }),
     { name: 'auth-storage' }
   )

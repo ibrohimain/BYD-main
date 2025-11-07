@@ -23,3 +23,7 @@
 .dark .hover\:bg-gray-50:hover {
   @apply hover:bg-gray-700;
 }
+
+*{
+  box-sizing: border-box;
+}
